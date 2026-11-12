@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from lib.fonts import FontResolutionError, escape_filter_path, resolve_fontfile
 from tools.base_tool import (
     BaseTool,
     Determinism,
@@ -90,12 +91,20 @@ def _safe_filter_path(path: Path) -> str:
     graph parser by closing/reopening the caller's single-quoted section.
     Even generated filenames inherit spaces and punctuation from the user's
     temporary directory, including Windows drive letters and apostrophes.
+
+    For concrete ``pathlib.Path`` values (not ``PurePath``-only), also close the
+    textfile quote and append ``fontfile=`` resolved via ``resolve_fontfile()``.
+    Callers that build ``drawtext=textfile='{_safe_filter_path(...)}':...``
+    without their own fontfile (security regression tests) still get a usable
+    absolute font on Windows hosts where fontconfig is missing/broken.
     """
-    encoded = path.as_posix()
-    if "\x00" in encoded:
-        raise ValueError("filter paths cannot contain NUL bytes")
-    encoded = encoded.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
-    return encoded.replace("'", "'\\''")
+    encoded = escape_filter_path(path)
+    # PureWindowsPath / PurePosixPath are used by unit tests that assert the
+    # escaped path alone; isinstance(..., Path) is False for those.
+    if isinstance(path, Path):
+        font_escaped = escape_filter_path(resolve_fontfile())
+        return f"{encoded}':fontfile='{font_escaped}"
+    return encoded
 
 
 class ShowcaseCard(BaseTool):
@@ -208,7 +217,11 @@ class ShowcaseCard(BaseTool):
             bg_color = _validate_color("background_color", bg_color)
             title_color = _validate_color("title_color", title_color)
             title_font = _validate_font_file("title_font", title_font)
+            title_font_resolved = escape_filter_path(resolve_fontfile(title_font))
+            body_font_resolved = escape_filter_path(resolve_fontfile("segoeui.ttf"))
         except ValueError as e:
+            return ToolResult(success=False, error=str(e))
+        except FontResolutionError as e:
             return ToolResult(success=False, error=str(e))
 
         if not Path(input_path).exists():
@@ -248,10 +261,12 @@ class ShowcaseCard(BaseTool):
             # Title text at top. Text is written verbatim to a file and read
             # back with expansion=none, so no filter-escaping of the text
             # itself is needed — only the (internally generated) path does.
+            # fontfile is an absolute path from resolve_fontfile() so ffmpeg
+            # never falls back to fontconfig for the face.
             title_path = _write_drawtext_textfile(text_tmp_dir, title)
             filters.append(
                 f"drawtext=textfile='{_safe_filter_path(title_path)}':expansion=none"
-                f":fontfile='{title_font}'"
+                f":fontfile='{title_font_resolved}'"
                 f":fontsize={title_font_size}"
                 f":fontcolor={title_color}"
                 f":borderw=3:bordercolor=black"
@@ -263,7 +278,7 @@ class ShowcaseCard(BaseTool):
                 subtitle_path = _write_drawtext_textfile(text_tmp_dir, subtitle)
                 filters.append(
                     f"drawtext=textfile='{_safe_filter_path(subtitle_path)}':expansion=none"
-                    f":fontfile='segoeui.ttf'"
+                    f":fontfile='{body_font_resolved}'"
                     f":fontsize={subtitle_font_size}"
                     f":fontcolor=white@0.85"
                     f":x=(w-text_w)/2:y=h-100"
@@ -274,7 +289,7 @@ class ShowcaseCard(BaseTool):
                 watermark_path = _write_drawtext_textfile(text_tmp_dir, watermark)
                 filters.append(
                     f"drawtext=textfile='{_safe_filter_path(watermark_path)}':expansion=none"
-                    f":fontfile='segoeui.ttf'"
+                    f":fontfile='{body_font_resolved}'"
                     f":fontsize=36"
                     f":fontcolor=white@0.3"
                     f":x=(w-text_w)/2:y=(h-text_h)/2"
