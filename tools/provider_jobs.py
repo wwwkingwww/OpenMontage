@@ -12,6 +12,15 @@ import requests
 
 
 def request_json(method, url, *, headers=None, **kwargs):
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError(
+            f"request_json only allows http/https URLs; refused scheme {parsed.scheme!r}"
+        )
+    if not parsed.hostname:
+        raise ValueError(
+            f"request_json requires a host; refused URL with scheme {parsed.scheme!r}"
+        )
     response = requests.request(method, url, headers=headers, timeout=60, **kwargs)
     response.raise_for_status()
     return response.json()
