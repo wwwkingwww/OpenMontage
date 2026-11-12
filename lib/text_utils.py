@@ -12,3 +12,21 @@ def slugify(text: str, *, separator: str = "-") -> str:
     if not separator:
         return collapsed
     return collapsed.strip(separator)
+
+
+def title_case(text: str) -> str:
+    """Capitalize the first letter of each whitespace-separated word.
+
+    Consecutive whitespace is collapsed to a single space; leading and trailing
+    whitespace is stripped. Words that do not start with a letter stay lowercased.
+    """
+    if not text.strip():
+        return ""
+    parts: list[str] = []
+    for word in text.split():
+        lowered = word.lower()
+        if lowered[0].isalpha():
+            parts.append(lowered[0].upper() + lowered[1:])
+        else:
+            parts.append(lowered)
+    return " ".join(parts)
