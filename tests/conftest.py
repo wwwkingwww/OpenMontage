@@ -10,6 +10,8 @@ openai, boto3), `httpx`, and raw `urllib`. Everything bottoms out in
 `socket.connect`, so that is where the wall goes.
 
 Loopback is still allowed — local servers, ffmpeg RPC, and Backlot fixtures need it.
+Proxy discovery (env + OS/`getproxies`) is neutered so a local system proxy
+cannot tunnel outbound through 127.0.0.1 and bypass the wall.
 
 To write a test that genuinely hits a live API:
 
@@ -28,87 +30,31 @@ from a subprocess in tests.
 
 from __future__ import annotations
 
-import os
-import socket
-
 import pytest
 
+from lib.network_guard import (
+    NetworkCallInTestError,
+    install_network_guard,
+    network_allowed,
+)
+
+# Re-export for any test that imported these from conftest historically.
 _ALLOW_ENV_FLAG = "OPENMONTAGE_ALLOW_NETWORK"
-
-_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", "0.0.0.0", ""}
-
-_real_connect = socket.socket.connect
-_real_connect_ex = socket.socket.connect_ex
-_real_create_connection = socket.create_connection
-
-
-class NetworkCallInTestError(RuntimeError):
-    """Raised when a test tries to open a non-loopback connection."""
-
-
-def _network_allowed() -> bool:
-    return os.environ.get(_ALLOW_ENV_FLAG, "").strip().lower() in {"1", "true", "yes"}
-
-
-def _is_loopback(address) -> bool:
-    """True for loopback TCP/UDP targets and for AF_UNIX socket paths."""
-    if isinstance(address, (str, bytes)):
-        return True  # AF_UNIX / abstract socket — local by definition
-    if not isinstance(address, (tuple, list)) or not address:
-        return True  # unrecognised shape; let the real call decide
-    host = address[0]
-    if isinstance(host, bytes):
-        host = host.decode("utf-8", "replace")
-    if not isinstance(host, str):
-        return False
-    host = host.strip("[]").lower()
-    if host in _LOOPBACK_HOSTS:
-        return True
-    return host.startswith("127.")
-
-
-def _blocked(address) -> NetworkCallInTestError:
-    return NetworkCallInTestError(
-        f"Blocked a network connection to {address!r} during a test.\n"
-        f"\n"
-        f"Tests must not call real endpoints — provider APIs bill per request.\n"
-        f"Mock the transport instead (see tests/tools/test_atlas_video.py for the\n"
-        f"fake-`requests` pattern), or mark the test @pytest.mark.live_api and run\n"
-        f"it deliberately with {_ALLOW_ENV_FLAG}=1."
-    )
+__all__ = ["NetworkCallInTestError", "_ALLOW_ENV_FLAG"]
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _block_network():
-    """Refuse non-loopback sockets for the entire session."""
-    if _network_allowed():
+    """Refuse non-loopback sockets (and proxy escapes) for the entire session."""
+    if network_allowed():
         yield
         return
 
-    def guarded_connect(self, address, *args, **kwargs):
-        if not _is_loopback(address):
-            raise _blocked(address)
-        return _real_connect(self, address, *args, **kwargs)
-
-    def guarded_connect_ex(self, address, *args, **kwargs):
-        if not _is_loopback(address):
-            raise _blocked(address)
-        return _real_connect_ex(self, address, *args, **kwargs)
-
-    def guarded_create_connection(address, *args, **kwargs):
-        if not _is_loopback(address):
-            raise _blocked(address)
-        return _real_create_connection(address, *args, **kwargs)
-
-    socket.socket.connect = guarded_connect
-    socket.socket.connect_ex = guarded_connect_ex
-    socket.create_connection = guarded_create_connection
+    restore = install_network_guard()
     try:
         yield
     finally:
-        socket.socket.connect = _real_connect
-        socket.socket.connect_ex = _real_connect_ex
-        socket.create_connection = _real_create_connection
+        restore()
 
 
 def pytest_configure(config):
@@ -121,7 +67,7 @@ def pytest_configure(config):
 
 def pytest_collection_modifyitems(config, items):
     """Skip live_api tests unless the operator explicitly opted in."""
-    if _network_allowed():
+    if network_allowed():
         return
     skip = pytest.mark.skip(
         reason=f"live API test — costs money; set {_ALLOW_ENV_FLAG}=1 to run"
