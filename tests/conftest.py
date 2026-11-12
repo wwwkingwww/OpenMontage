@@ -30,6 +30,10 @@ from a subprocess in tests.
 
 from __future__ import annotations
 
+from lib.path_guard import demote_pythonpath_shadows
+
+demote_pythonpath_shadows()
+
 import pytest
 
 from lib.network_guard import (
