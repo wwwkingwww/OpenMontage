@@ -24,11 +24,30 @@ from tools.base_tool import (
 )
 from tools.provider_jobs import request_json, download, poll, save_job
 
+# Explicit map so common image MIME types work on Python 3.10+
+# (stdlib mimetypes only added image/webp in 3.11).
+_IMAGE_EXT_MIME = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".avif": "image/avif",
+    ".gif": "image/gif",
+    ".bmp": "image/bmp",
+    ".svg": "image/svg+xml",
+}
+
 
 def local_image(path):
+    suffix = Path(path).suffix.lower()
+    mime = (
+        _IMAGE_EXT_MIME.get(suffix)
+        or mimetypes.guess_type(path)[0]
+        or "image/png"
+    )
     return (
         "data:"
-        + (mimetypes.guess_type(path)[0] or "image/png")
+        + mime
         + ";base64,"
         + base64.b64encode(Path(path).read_bytes()).decode()
     )
