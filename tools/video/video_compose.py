@@ -42,6 +42,7 @@ from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import unquote, urlsplit
 
+from lib.fonts import FontResolutionError, escape_filter_path, resolve_fontfile
 from tools.base_tool import (
     BaseTool,
     Determinism,
@@ -689,8 +690,12 @@ class VideoCompose(BaseTool):
             if subtitle_path and Path(subtitle_path).exists():
                 style = inputs.get("subtitle_style", {})
                 ass_style = self._build_subtitle_style(style)
-                sub_escaped = str(Path(subtitle_path).resolve()).replace("\\", "/").replace(":", "\\:")
-                vfilters.append(f"subtitles='{sub_escaped}':force_style='{ass_style}'")
+                try:
+                    vfilters.append(
+                        self._build_subtitles_filter(subtitle_path, ass_style)
+                    )
+                except FontResolutionError as e:
+                    return ToolResult(success=False, error=str(e))
 
             cmd = ["ffmpeg", "-y", "-i", str(final_input)]
 
@@ -2804,14 +2809,18 @@ class VideoCompose(BaseTool):
 
         style = inputs.get("subtitle_style", {})
         ass_style = self._build_subtitle_style(style)
-        sub_escaped = str(subtitle_path.resolve()).replace("\\", "/").replace(":", "\\:")
         codec = inputs.get("codec", "libx264")
         crf = inputs.get("crf", 23)
+
+        try:
+            subtitles_vf = self._build_subtitles_filter(subtitle_path, ass_style)
+        except FontResolutionError as e:
+            return ToolResult(success=False, error=str(e))
 
         cmd = [
             "ffmpeg", "-y",
             "-i", str(input_path),
-            "-vf", f"subtitles='{sub_escaped}':force_style='{ass_style}'",
+            "-vf", subtitles_vf,
             "-c:v", codec, "-crf", str(crf),
             "-c:a", "copy",
             str(output_path),
@@ -2998,6 +3007,18 @@ class VideoCompose(BaseTool):
                     resolved[k] = v
 
         return resolved
+
+    @staticmethod
+    def _build_subtitles_filter(subtitle_path: str | Path, ass_style: str) -> str:
+        """Build a subtitles= filter with an explicit fontsdir from resolve_fontfile().
+
+        Avoids fontconfig default-config failures on Windows gyan builds by
+        pointing libass at the directory that contains a resolved system font.
+        """
+        fontfile = resolve_fontfile()
+        fonts_dir = escape_filter_path(Path(fontfile).parent)
+        sub_escaped = escape_filter_path(Path(subtitle_path).resolve())
+        return f"subtitles='{sub_escaped}':fontsdir='{fonts_dir}':force_style='{ass_style}'"
 
     @staticmethod
     def _build_subtitle_style(style: dict) -> str:
