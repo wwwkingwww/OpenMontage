@@ -158,6 +158,7 @@ def test_safe_join_absolute_base_allowed_for_user_output_sites(tmp_path):
     - tools/video/video_stitch.py / video_trimmer.py / silence_cutter.py
       (temp_dir under output_path.parent)
     - lib/corpus.py (user-provided corpus_dir)
+    - tools/video/stock_sources/* (download out_path.parent; caller absolute OK)
     """
     abs_base = (tmp_path / "user_out").resolve()
     abs_base.mkdir()
@@ -165,3 +166,63 @@ def test_safe_join_absolute_base_allowed_for_user_output_sites(tmp_path):
     assert result.is_absolute()
     assert result.parent == abs_base
     assert result.name == "artifact.json"
+
+
+# ---------------------------------------------------------------------------
+# stock_sources download confinement (T-0403)
+# ---------------------------------------------------------------------------
+
+
+def test_stock_source_download_allows_caller_absolute_out_path(tmp_path, monkeypatch):
+    """Pexels download keeps caller absolute out_path; mocks network I/O.
+
+    corpus_builder / direct_clip_search pass an absolute path under the
+    corpus (or clips) directory. That absolute parent is the legal
+    confinement root — behaviour is preserved when the filename is safe.
+    """
+    from tools.video.stock_sources.base import Candidate
+    from tools.video.stock_sources.pexels import PexelsSource
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def raise_for_status(self):
+            return None
+
+        def iter_content(self, chunk_size):
+            yield b"stock-bytes"
+
+    def fake_get(*args, **kwargs):
+        return _Resp()
+
+    import requests
+
+    monkeypatch.setattr(requests, "get", fake_get)
+
+    candidate = Candidate(
+        source="pexels",
+        source_id="1",
+        source_url="https://www.pexels.com/video/1",
+        download_url="https://videos.pexels.com/video-files/1.mp4",
+        kind="video",
+    )
+    output = (tmp_path / "clips" / "pexels_1.mp4").resolve()
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    result = PexelsSource().download(candidate, output)
+    assert result == output
+    assert result.resolve().is_relative_to(tmp_path.resolve())
+    assert output.read_bytes() == b"stock-bytes"
+
+
+def test_stock_source_download_rejects_traversal_out_name(tmp_path):
+    """Stock download rejects out_path whose final name is a ``..`` component."""
+    from tools.video.stock_sources.base import confine_download_out_path
+
+    unsafe = tmp_path / ".."
+    with pytest.raises(ValueError, match="safe_join rejected|escapes base"):
+        confine_download_out_path(unsafe)

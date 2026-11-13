@@ -38,7 +38,7 @@ import re
 from pathlib import Path
 from typing import Any, Optional
 
-from .base import Candidate, SearchFilters
+from .base import Candidate, SearchFilters, confine_download_out_path
 
 
 _SEARCH_URL = "https://archive.org/advancedsearch.php"
@@ -187,7 +187,8 @@ class ArchiveOrgSource:
                 f"Candidate {candidate.clip_id} has no download_url"
             )
 
-        out_path = Path(out_path)
+        # Caller absolute out_path is legal; confine name under its parent.
+        out_path = confine_download_out_path(out_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
         with requests.get(

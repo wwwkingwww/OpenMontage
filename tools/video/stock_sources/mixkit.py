@@ -22,7 +22,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .base import Candidate, SearchFilters
+from .base import Candidate, SearchFilters, confine_download_out_path
 
 _log = logging.getLogger(__name__)
 
@@ -262,7 +262,8 @@ class MixkitSource:
         import requests
         from bs4 import BeautifulSoup
 
-        out_path = Path(out_path)
+        # Caller absolute out_path is legal; confine name under its parent.
+        out_path = confine_download_out_path(out_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
         detail_url = candidate.extra.get("detail_url", candidate.download_url)
