@@ -15,6 +15,7 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
+from lib.path_guard import safe_join
 from tools.base_tool import (
     BaseTool,
     Determinism,
@@ -595,7 +596,7 @@ class VideoStitch(BaseTool):
         temp_files: list[Path],
     ) -> dict[str, Any]:
         """Simple concat via FFmpeg concat demuxer (no transition)."""
-        concat_list = temp_dir / "concat_list.txt"
+        concat_list = Path(safe_join(temp_dir, "concat_list.txt"))
         temp_files.append(concat_list)
         with open(concat_list, "w", encoding="utf-8") as f:
             for clip in clips:

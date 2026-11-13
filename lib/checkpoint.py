@@ -14,6 +14,7 @@ from typing import Any, Optional
 
 import jsonschema
 
+from lib.path_guard import safe_join
 from schemas.artifacts import ARTIFACT_NAMES, validate_artifact
 
 # All known stages across all pipelines (used only for artifact name lookup).
@@ -206,7 +207,7 @@ def validate_checkpoint(checkpoint: dict[str, Any]) -> None:
 
 
 def _checkpoint_path(pipeline_dir: Path, project_id: str, stage: str) -> Path:
-    return pipeline_dir / project_id / f"checkpoint_{stage}.json"
+    return Path(safe_join(pipeline_dir, project_id, f"checkpoint_{stage}.json"))
 
 
 def init_project(
@@ -232,7 +233,7 @@ def init_project(
     """
     _validate_style_playbook(style_playbook)
     base = pipeline_dir or PROJECTS_DIR
-    project_dir = base / project_id
+    project_dir = Path(safe_join(base, project_id))
     for sub in (
         "artifacts",
         "assets/images",
@@ -241,9 +242,9 @@ def init_project(
         "assets/music",
         "renders",
     ):
-        (project_dir / sub).mkdir(parents=True, exist_ok=True)
+        Path(safe_join(project_dir, sub)).mkdir(parents=True, exist_ok=True)
 
-    marker_path = project_dir / PROJECT_MARKER_FILENAME
+    marker_path = Path(safe_join(project_dir, PROJECT_MARKER_FILENAME))
     marker: dict[str, Any] = {}
     if marker_path.exists():
         try:
@@ -406,7 +407,7 @@ def _archive_superseded_checkpoint(path: Path, stage: str) -> None:
 
 
 def _decision_log_path(pipeline_dir: Path, project_id: str) -> Path:
-    return pipeline_dir / project_id / "decision_log.json"
+    return Path(safe_join(pipeline_dir, project_id, "decision_log.json"))
 
 
 def _merge_decision_log(
@@ -575,7 +576,7 @@ def write_checkpoint(
     # unserializable metadata) can never leave the stage with a truncated
     # current checkpoint; then archive the superseded file and swap in the
     # new one atomically.
-    tmp_path = path.with_suffix(".json.tmp")
+    tmp_path = Path(safe_join(path.parent, path.with_suffix(".json.tmp").name))
     with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(checkpoint, f, indent=2)
     # Preserve run history: a superseded completed/awaiting_human checkpoint

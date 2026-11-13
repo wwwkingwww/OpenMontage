@@ -23,6 +23,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from lib.path_guard import safe_join
 from tools.base_tool import (
     BaseTool,
     Determinism,
@@ -301,7 +302,11 @@ class AzureSpeechToText(BaseTool):
 
         result_data = self._parse_payload(payload, locales)
         result_data["provider"] = "azure"
-        output_path = output_dir / f"{input_path.stem}_transcript.json"
+        # output_dir may be an absolute user path (legal); confine the
+        # transcript filename under that directory.
+        output_path = Path(
+            safe_join(output_dir, f"{input_path.stem}_transcript.json")
+        )
         output_path.write_text(json.dumps(result_data, indent=2), encoding="utf-8")
 
         return ToolResult(

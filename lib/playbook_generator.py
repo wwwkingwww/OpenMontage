@@ -16,6 +16,8 @@ from typing import Any
 
 import jsonschema
 
+from lib.path_guard import safe_join
+
 PLAYBOOK_SCHEMA_PATH = (
     Path(__file__).resolve().parent.parent
     / "schemas" / "styles" / "playbook.schema.json"
@@ -217,7 +219,7 @@ def save_playbook(
     filename = name.lower().replace(" ", "-").replace("_", "-")
 
     CUSTOM_STYLES_DIR.mkdir(parents=True, exist_ok=True)
-    path = CUSTOM_STYLES_DIR / f"{filename}.yaml"
+    path = Path(safe_join(CUSTOM_STYLES_DIR, f"{filename}.yaml"))
 
     with open(path, "w") as f:
         yaml.dump(playbook, f, default_flow_style=False, allow_unicode=True)

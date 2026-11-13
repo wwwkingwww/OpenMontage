@@ -43,6 +43,7 @@ from typing import Any, Optional
 from urllib.parse import unquote, urlsplit
 
 from lib.fonts import FontResolutionError, escape_filter_path, resolve_fontfile
+from lib.path_guard import safe_join
 from tools.base_tool import (
     BaseTool,
     Determinism,
@@ -667,7 +668,7 @@ class VideoCompose(BaseTool):
                 temp_segments.append(seg_path)
 
             # Step 2: Concat segments
-            concat_path = temp_dir / "concat_list.txt"
+            concat_path = Path(safe_join(temp_dir, "concat_list.txt"))
             with open(concat_path, "w", encoding="utf-8") as f:
                 for seg in temp_segments:
                     safe = str(seg.resolve()).replace("\\", "/")
@@ -2103,7 +2104,9 @@ class VideoCompose(BaseTool):
         # Everything from staging onward is guarded, so a failure during props
         # writing or command setup — not just during the render — still removes
         # the staged user media instead of leaving it on disk.
-        props_path = output_path.parent / ".remotion_props.json"
+        # output_path may be an absolute user path (legal); confine the props
+        # sibling under that parent via safe_join.
+        props_path = Path(safe_join(output_path.parent, ".remotion_props.json"))
         staged_count = 0
         profile_name = inputs.get("profile")
         try:

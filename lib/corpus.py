@@ -37,6 +37,8 @@ from typing import Any, Iterable, Optional
 
 import numpy as np
 
+from lib.path_guard import safe_join
+
 
 EMBED_DIM = 512
 
@@ -171,7 +173,7 @@ class Corpus:
         # JSONL first — if a crash interrupts the .npy writes the JSONL
         # is the source of truth for what exists, and load() will
         # auto-truncate the embeddings to match.
-        tmp_index = self.index_path.with_suffix(".jsonl.tmp")
+        tmp_index = Path(safe_join(self.corpus_dir, "index.jsonl.tmp"))
         with open(tmp_index, "w", encoding="utf-8") as f:
             for rec in self.records:
                 f.write(json.dumps(asdict(rec)) + "\n")
