@@ -36,9 +36,25 @@ Adding a new source
 from __future__ import annotations
 
 import hashlib
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional, Protocol, runtime_checkable
+
+from lib.path_guard import safe_join
+
+
+def confine_download_out_path(out_path: str | os.PathLike[str]) -> Path:
+    """Confine a stock download target under its parent via ``safe_join``.
+
+    Callers (corpus builder, direct_clip_search, tests) pass an explicit
+    output path. Absolute caller paths are legal: the parent directory is
+    the confinement root and only the final name is joined as a relative
+    part — same contract as ``cost_tracker`` / ``video_compose``. Unsafe
+    names (``..``, absolute, drive, UNC) raise ``ValueError``.
+    """
+    path = Path(out_path)
+    return Path(safe_join(path.parent, path.name))
 
 
 @dataclass
