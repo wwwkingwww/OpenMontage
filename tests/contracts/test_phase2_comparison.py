@@ -39,11 +39,26 @@ def _get_file_size_mb(path: str) -> float:
     return Path(path).stat().st_size / (1024 * 1024)
 
 
+def _synthesize_footage(output_path: Path) -> Path:
+    """Deterministic ~5s testsrc+sine h264 mp4 for machines without real footage."""
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-v", "error",
+            "-f", "lavfi", "-i", "testsrc=duration=5:size=640x360:rate=30",
+            "-f", "lavfi", "-i", "sine=frequency=440:duration=5",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-shortest",
+            str(output_path),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return output_path
+
+
 @pytest.fixture(scope="module")
 def comparison_outputs(tmp_path_factory):
     """Run compose handler twice: baseline and enhanced."""
-    if not FOOTAGE.exists():
-        pytest.skip("Test footage not available")
     if not _has_ffmpeg():
         pytest.skip("FFmpeg not available")
 
@@ -53,6 +68,11 @@ def comparison_outputs(tmp_path_factory):
     from tools.audio.audio_enhance import AudioEnhance
 
     tmp = tmp_path_factory.mktemp("comparison")
+    if FOOTAGE.exists():
+        footage = FOOTAGE
+    else:
+        footage = _synthesize_footage(tmp / "synthetic_footage.mp4")
+    footage_str = str(footage)
     results = {}
 
     # Phase 1 baseline: just encode
@@ -60,7 +80,7 @@ def comparison_outputs(tmp_path_factory):
     baseline_path = str(tmp / "phase1_baseline.mp4")
     r = composer.execute({
         "operation": "encode",
-        "input_path": str(FOOTAGE),
+        "input_path": footage_str,
         "output_path": baseline_path,
         "codec": "libx264",
         "crf": 20,
@@ -69,7 +89,7 @@ def comparison_outputs(tmp_path_factory):
     results["baseline"] = baseline_path
 
     # Phase 2 enhanced: face -> color -> audio
-    current = str(FOOTAGE)
+    current = footage_str
     enhancements = []
 
     face = FaceEnhance()
