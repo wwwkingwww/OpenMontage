@@ -1,0 +1,158 @@
+{
+  "name": "talking_head_basic",
+  "description": "Golden scenario for the talking-head pipeline: a 15s vertical talking-head clip, transcribed, jump-cut planned, subtitled, rendered and exported. Each entry under expected_artifacts is a minimal schema-valid artifact sample for its pipeline stage.",
+  "pipeline": "talking-head",
+  "stages": ["idea", "script", "scene_plan", "assets", "edit", "compose", "publish"],
+  "tags": ["phase1", "talking_head", "subtitles", "vertical"],
+  "inputs": {
+    "footage_path": "projects/talking-head-basic/assets/source/seg1_intro.mp4",
+    "target_platform": "youtube",
+    "target_duration_seconds": 15,
+    "style_playbook": "clean-professional"
+  },
+  "expected_artifacts": {
+    "brief": {
+      "version": "1.0",
+      "title": "AI Video Automation in 15 Seconds",
+      "hook": "One clip goes in, one finished video comes out. What happens in between?",
+      "key_points": [
+        "Raw talking-head footage is the backbone of the video",
+        "Subtitles and pacing drive watch-through rate",
+        "The pipeline automates the repetitive work"
+      ],
+      "core_message": "An instruction-driven pipeline turns raw footage into a finished vertical clip.",
+      "tone": "conversational",
+      "style": "clean-professional",
+      "target_platform": "youtube",
+      "target_duration_seconds": 15,
+      "reference_material": ["projects/talking-head-basic/assets/source/seg1_intro.mp4"],
+      "selected_angle": "Use one 15-second talking-head clip to show the full footage-to-finished-video flow"
+    },
+    "script": {
+      "version": "1.0",
+      "title": "AI Video Automation in 15 Seconds",
+      "total_duration_seconds": 15,
+      "sections": [
+        {
+          "id": "sec-1",
+          "label": "Opening hook",
+          "text": "One clip goes in, one finished video comes out. That is not magic, that is the pipeline doing the work.",
+          "start_seconds": 0,
+          "end_seconds": 15
+        }
+      ]
+    },
+    "scene_plan": {
+      "version": "1.0",
+      "style_playbook": "clean-professional",
+      "scenes": [
+        {
+          "id": "scene-1",
+          "type": "talking_head",
+          "description": "Speaker in medium close-up, clean background, eye contact with camera, no cuts for the full duration",
+          "start_seconds": 0,
+          "end_seconds": 15,
+          "script_section_id": "sec-1",
+          "framing": "medium close-up, vertical 9:16",
+          "shot_intent": "Build speaker trust so the viewer focuses on the content",
+          "information_role": "Viewer learns this is a pipeline-driven automation demo"
+        }
+      ]
+    },
+    "asset_manifest": {
+      "version": "1.0",
+      "assets": [
+        {
+          "id": "asset-footage-source",
+          "type": "video",
+          "path": "assets/source/seg1_intro.mp4",
+          "source_tool": "user_provided",
+          "scene_id": "scene-1",
+          "duration_seconds": 15,
+          "resolution": "1080x1920",
+          "format": "mp4",
+          "subtype": "source",
+          "generation_summary": "Raw talking-head footage provided by the user"
+        },
+        {
+          "id": "asset-subtitles",
+          "type": "subtitle",
+          "path": "assets/subtitles/subtitles.srt",
+          "source_tool": "subtitle_gen",
+          "scene_id": "scene-1",
+          "format": "srt",
+          "generation_summary": "Subtitles generated from the transcript and aligned to the speech timeline"
+        }
+      ]
+    },
+    "edit_decisions": {
+      "version": "1.0",
+      "cuts": [
+        {
+          "id": "cut-1",
+          "source": "asset-footage-source",
+          "in_seconds": 0,
+          "out_seconds": 15,
+          "reason": "Footage is already tight; keep the full take with original audio, no jump cuts"
+        }
+      ],
+      "subtitles": {
+        "enabled": true,
+        "style": "word-by-word",
+        "source": "asset-subtitles",
+        "position": "bottom-center",
+        "max_words_per_line": 6
+      },
+      "audio": {
+        "narration": {
+          "segments": [
+            {
+              "asset_id": "asset-footage-source",
+              "start_seconds": 0,
+              "end_seconds": 15
+            }
+          ]
+        }
+      },
+      "renderer_family": "presenter",
+      "render_runtime": "remotion",
+      "composition_mode": "templated"
+    },
+    "render_report": {
+      "version": "1.0",
+      "outputs": [
+        {
+          "path": "renders/final.mp4",
+          "format": "mp4",
+          "codec": "h264",
+          "audio_codec": "aac",
+          "resolution": "1080x1920",
+          "fps": 30,
+          "duration_seconds": 15,
+          "platform_target": "youtube"
+        }
+      ],
+      "render_time_seconds": 42.5,
+      "verification_notes": [
+        "Output file is playable, video and audio are in sync",
+        "Subtitles align word-by-word with speech, positioned bottom-center"
+      ]
+    },
+    "publish_log": {
+      "version": "1.0",
+      "entries": [
+        {
+          "platform": "local_export",
+          "status": "exported",
+          "export_path": "renders/final.mp4",
+          "timestamp": "2026-11-13T12:00:00Z",
+          "metadata_used": {
+            "title": "AI Video Automation in 15 Seconds",
+            "description": "15-second talking-head demo: raw footage to finished video",
+            "hashtags": ["ai", "video", "automation"]
+          }
+        }
+      ]
+    }
+  }
+}
