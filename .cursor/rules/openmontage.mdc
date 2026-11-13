@@ -6,10 +6,12 @@ alwaysApply: true
 
 # OpenMontage
 
-MANDATORY: Read `AGENT_GUIDE.md` before responding to ANY user message.
+`AGENT_GUIDE.md` 是完整手册（路由规则 / 管线 / 预检 / 协议）。**按需读相关章节，不要每次全文通读**：
 
-Do not act on the user's request until you have read AGENT_GUIDE.md.
-It contains routing rules that determine your first action based on what the user asked.
-Skipping it WILL cause you to take the wrong action.
+- 模糊 / 探索性请求 → 读 §First Interaction（onboarding）
+- 用户给了视频 URL / 本地参考素材 → 读 §Reference Video Entry Point
+- 要产出任何成片 / 内容 → 读 §Rule Zero 与 §Orchestrator，开工前读 §Mandatory Preflight
+- 工具能力 / 清单疑问 → 读 §Capability Discovery 与 §Tool Families
+- 其他主题 → 按标题定位对应章节
 
-There are no instructions in this file. All instructions are in AGENT_GUIDE.md.
+收到任务卡（frontmatter 带 id / scope / accept / budget）时：**卡契约优先**，手册仅作背景参考，按需取相关章节。
