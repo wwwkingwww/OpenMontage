@@ -20,3 +20,22 @@ Notes:
 - First install downloads Chromium via puppeteer’s postinstall; wait until it finishes.
 - Global npm packages are machine-local and are not committed to git.
 - Pillow (Python) covers flowchart/boxes rendering; install separately in the project venv if missing (`pip install Pillow`).
+
+## Playwright (Chromium)
+
+| Field | Value |
+| --- | --- |
+| Tool | `playwright` (Python package) + Chromium browser binary |
+| Install package | `.venv/Scripts/python.exe -m pip install playwright` (also listed in `requirements-dev.txt`) |
+| Install browser | `.venv/Scripts/python.exe -m playwright install chromium` (~150MB; wait until finished) |
+| Verify | `.venv/Scripts/python.exe -c "from playwright.sync_api import sync_playwright; print('ok')"` |
+| Purpose | Drives a real Chromium browser for Backlot local board UI bug-bash |
+| Consumed by | `tests/backlot/test_ui_bug_bash.py` (`pytest.importorskip("playwright.sync_api")`) |
+| Tests that need it | `tests/backlot/test_ui_bug_bash.py` — without the package those tests skip; without Chromium they fail at browser launch |
+
+Notes:
+
+- Browser binaries live under the Playwright cache on the machine and are **not** committed to git.
+- Re-run `playwright install chromium` after upgrading the `playwright` package if browser launch fails.
+- If `cdn.playwright.dev` stalls, set `PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright` then retry the install.
+- Unset a polluted `PYTHONPATH` (e.g. foreign `.pylibs`) before import/tests, or `greenlet` may break and `importorskip` will skip the suite.
