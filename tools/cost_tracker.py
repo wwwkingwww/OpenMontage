@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from lib.config_model import BudgetMode
+from lib.path_guard import safe_join
 
 
 class EntryStatus(str, Enum):
@@ -498,8 +499,13 @@ class CostTracker:
             "approved_tools": sorted(self._approved_tools),
             "entries": self.entries,
         }
-        self.cost_log_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.cost_log_path, "w") as f:
+        # cost_log_path may be an absolute user path (legal); confine the
+        # filename under its parent via safe_join.
+        log_path = Path(
+            safe_join(self.cost_log_path.parent, self.cost_log_path.name)
+        )
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(log_path, "w") as f:
             json.dump(data, f, indent=2)
 
     def _load(self) -> None:

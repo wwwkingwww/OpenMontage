@@ -13,6 +13,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from lib.path_guard import safe_join
 from tools.base_tool import (
     BaseTool,
     Determinism,
@@ -242,7 +243,7 @@ class VideoTrimmer(BaseTool):
                     temp_files.append(seg_input)
 
             # Write concat file list
-            list_path = temp_dir / "concat_list.txt"
+            list_path = Path(safe_join(temp_dir, "concat_list.txt"))
             with open(list_path, "w", encoding="utf-8") as f:
                 for tf in temp_files:
                     # FFmpeg concat demuxer needs forward slashes and escaped quotes

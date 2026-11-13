@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from lib.path_guard import safe_join
 from tools.base_tool import (
     BaseTool,
     Determinism,
@@ -331,7 +332,7 @@ class SilenceCutter(BaseTool):
                 return ToolResult(success=False, error="No segments were successfully cut")
 
             # Concat all segments
-            list_path = temp_dir / "concat_list.txt"
+            list_path = Path(safe_join(temp_dir, "concat_list.txt"))
             with open(list_path, "w", encoding="utf-8") as f:
                 for sf in seg_files:
                     safe_path = str(sf.resolve()).replace("\\", "/").replace("'", "'\\''")
@@ -441,7 +442,7 @@ class SilenceCutter(BaseTool):
                 return ToolResult(success=False, error="No segments rendered")
 
             # Concat
-            list_path = temp_dir / "concat_list.txt"
+            list_path = Path(safe_join(temp_dir, "concat_list.txt"))
             with open(list_path, "w", encoding="utf-8") as f:
                 for sf in seg_files:
                     safe_path = str(sf.resolve()).replace("\\", "/").replace("'", "'\\''")

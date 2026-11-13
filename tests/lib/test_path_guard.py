@@ -1,6 +1,8 @@
-"""Unit tests for lib.path_guard.demote_pythonpath_shadows.
+"""Unit tests for lib.path_guard (PYTHONPATH demotion + safe_join).
 
-All scenarios use monkeypatch; none depend on the host PYTHONPATH layout.
+PYTHONPATH scenarios use monkeypatch; none depend on the host layout.
+safe_join contracts cover confined relative joins and rejection of
+absolute / drive / UNC / ``..`` parts.
 """
 
 from __future__ import annotations
@@ -9,10 +11,12 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from lib.path_guard import demote_pythonpath_shadows  # noqa: E402
+from lib.path_guard import demote_pythonpath_shadows, safe_join  # noqa: E402
 
 
 def test_pythonpath_entries_moved_to_tail(monkeypatch):
@@ -97,3 +101,67 @@ def test_relative_pythonpath_matched_via_abspath(monkeypatch, tmp_path):
     assert os.path.abspath(sys.path[-1]) == abs_shadow
     assert site in sys.path
     assert sys.path.index(site) < len(sys.path) - 1
+
+
+# ---------------------------------------------------------------------------
+# safe_join contracts
+# ---------------------------------------------------------------------------
+
+
+def test_safe_join_legitimate_relative_unchanged(tmp_path):
+    base = tmp_path / "root"
+    base.mkdir()
+    expected = str((base / "a" / "b.txt").resolve())
+    assert safe_join(base, "a", "b.txt") == expected
+    assert safe_join(str(base), "subdir", "file.json") == str(
+        (base / "subdir" / "file.json").resolve()
+    )
+
+
+def test_safe_join_result_stays_inside_base(tmp_path):
+    base = tmp_path / "confine"
+    base.mkdir()
+    result = Path(safe_join(base, "nested", "out.bin"))
+    assert result.resolve().is_relative_to(base.resolve())
+
+
+@pytest.mark.parametrize(
+    "part",
+    [
+        "../x",
+        "foo/../bar",
+        r"foo\..\bar",
+        "C:\\abs",
+        "C:/abs",
+        "\\\\server\\share",
+        "//server/share",
+        "/etc/passwd",
+    ],
+)
+def test_safe_join_rejects_unsafe_parts(tmp_path, part):
+    base = tmp_path / "root"
+    base.mkdir()
+    with pytest.raises(ValueError, match="safe_join rejected|escapes base"):
+        safe_join(base, part)
+
+
+def test_safe_join_absolute_base_allowed_for_user_output_sites(tmp_path):
+    """Absolute bases remain valid when the user supplies an output directory.
+
+    Call sites that intentionally accept absolute paths as the confinement
+    root (not as join parts):
+
+    - tools/analysis/azure_stt.py (_transcribe output_dir)
+    - tools/analysis/video_analyzer.py (_save_brief output_dir)
+    - tools/cost_tracker.py (_save cost_log_path parent)
+    - tools/video/video_compose.py (output_path.parent for props/concat)
+    - tools/video/video_stitch.py / video_trimmer.py / silence_cutter.py
+      (temp_dir under output_path.parent)
+    - lib/corpus.py (user-provided corpus_dir)
+    """
+    abs_base = (tmp_path / "user_out").resolve()
+    abs_base.mkdir()
+    result = Path(safe_join(abs_base, "artifact.json"))
+    assert result.is_absolute()
+    assert result.parent == abs_base
+    assert result.name == "artifact.json"

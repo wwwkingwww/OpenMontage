@@ -16,6 +16,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from lib.path_guard import safe_join
 from lib.paths import PROJECTS_DIR
 from tools.base_tool import (
     BaseTool,
@@ -792,7 +793,9 @@ class VideoAnalyzer(BaseTool):
 
     def _save_brief(self, brief: dict, output_dir: Path) -> None:
         """Save the VideoAnalysisBrief to disk."""
-        out_path = output_dir / "video_analysis_brief.json"
+        # output_dir may be an absolute user path (legal); confine the
+        # brief filename under that directory.
+        out_path = Path(safe_join(output_dir, "video_analysis_brief.json"))
         # Remove non-serializable items
         clean_brief = {k: v for k, v in brief.items()}
         with open(out_path, "w", encoding="utf-8") as f:
