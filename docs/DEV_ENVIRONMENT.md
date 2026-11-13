@@ -37,3 +37,5 @@ Notes:
 
 - Browser binaries live under the Playwright cache on the machine and are **not** committed to git.
 - Re-run `playwright install chromium` after upgrading the `playwright` package if browser launch fails.
+- If `cdn.playwright.dev` stalls, set `PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright` then retry the install.
+- Unset a polluted `PYTHONPATH` (e.g. foreign `.pylibs`) before import/tests, or `greenlet` may break and `importorskip` will skip the suite.
